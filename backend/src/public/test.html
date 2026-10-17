@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AutoGradeAi Test Console</title>
+  <style>
+    :root {
+      --bg: #f7f9fc;
+      --panel: #ffffff;
+      --text: #10243e;
+      --sub: #4f6480;
+      --accent: #0b63f6;
+      --accent-2: #0a4dbf;
+      --border: #d6e0ee;
+      --ok: #0c8a4b;
+      --err: #b42318;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 20% -10%, #dbeafe 0%, transparent 40%),
+        radial-gradient(circle at 100% 0%, #e0f2fe 0%, transparent 45%),
+        var(--bg);
+      min-height: 100vh;
+    }
+
+    .wrap {
+      max-width: 1000px;
+      margin: 24px auto;
+      padding: 0 16px 32px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 28px;
+      letter-spacing: 0.3px;
+    }
+
+    .sub {
+      margin: 0 0 18px;
+      color: var(--sub);
+      font-size: 14px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 8px 24px rgba(10, 40, 80, 0.05);
+    }
+
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 16px;
+    }
+
+    .card p.note {
+      margin: -4px 0 12px;
+      font-size: 12px;
+      color: var(--sub);
+      line-height: 1.45;
+    }
+
+    .row { margin-bottom: 10px; }
+
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 12px;
+      color: var(--sub);
+    }
+
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 14px;
+      background: #fff;
+      color: var(--text);
+    }
+
+    textarea { min-height: 84px; resize: vertical; }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      margin-right: 8px;
+      margin-top: 6px;
+    }
+
+    button:hover { background: var(--accent-2); }
+
+    .token-box {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--sub);
+      word-break: break-all;
+      background: #f1f5f9;
+      border-radius: 8px;
+      padding: 8px;
+    }
+
+    .status {
+      margin: 12px 0;
+      font-size: 13px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #eef4ff;
+      color: #103a8f;
+      border: 1px solid #bfd3ff;
+    }
+
+    .status.ok {
+      background: #ecfdf3;
+      border-color: #abefc6;
+      color: var(--ok);
+    }
+
+    .status.err {
+      background: #fef3f2;
+      border-color: #fecdca;
+      color: var(--err);
+    }
+
+    pre {
+      margin: 0;
+      background: #0b1b34;
+      color: #d7e4ff;
+      border-radius: 12px;
+      padding: 12px;
+      max-height: 440px;
+      overflow: auto;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>AutoGradeAi Testing Console</h1>
+    <p class="sub">Use this page to test auth, classroom APIs, and submissions grading with reference file upload + Drive question paper.</p>
+
+    <div id="status" class="status">Ready.</div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Auth</h2>
+        <div class="row">
+          <label for="email">Email</label>
+          <input id="email" type="email" placeholder="teacher@example.com" />
+        </div>
+        <div class="row">
+          <label for="fullName">Full Name (optional)</label>
+          <input id="fullName" type="text" placeholder="Teacher Name" />
+        </div>
+        <button id="loginBtn">Login (Local)</button>
+        <button id="googleBtn" type="button">Login With Google</button>
+        <div class="token-box" id="tokenBox">Token: not set</div>
+      </div>
+
+      <div class="card">
+        <h2>List Classroom Data</h2>
+        <div class="row">
+          <label for="courseId">Course ID</label>
+          <input id="courseId" type="text" placeholder="848690537250" />
+        </div>
+        <div class="row">
+          <label for="courseWorkId">Coursework ID</label>
+          <input id="courseWorkId" type="text" placeholder="848843679124" />
+        </div>
+        <button id="coursesBtn">Get Courses</button>
+        <button id="courseworkBtn">Get Coursework</button>
+      </div>
+
+      <div class="card">
+        <h2>Create Coursework</h2>
+        <p class="note">Uploads a local file to Drive and creates Classroom coursework via <code>/api/classroom/createCoursework/:courseId</code>.</p>
+        <div class="row">
+          <label for="cwTitle">Title</label>
+          <input id="cwTitle" type="text" placeholder="Quiz 1" />
+        </div>
+        <div class="row">
+          <label for="cwDescription">Description</label>
+          <textarea id="cwDescription" placeholder="Solve all questions."></textarea>
+        </div>
+        <div class="row">
+          <label for="cwMaxPoints">Max Points</label>
+          <input id="cwMaxPoints" type="number" value="10" min="0" />
+        </div>
+        <div class="row">
+          <label for="cwDueDate">Due Date (optional)</label>
+          <input id="cwDueDate" type="date" />
+        </div>
+        <div class="row">
+          <label for="cwDueTime">Due Time (optional)</label>
+          <input id="cwDueTime" type="time" />
+        </div>
+        <div class="row">
+          <label for="cwFile">Assignment File</label>
+          <input id="cwFile" type="file" />
+        </div>
+        <button id="createCourseworkBtn">Create Coursework</button>
+      </div>
+
+      <div class="card">
+        <h2>Submissions + Grading</h2>
+        <div class="row">
+          <label for="driveId">Question Paper Drive ID (optional)</label>
+          <input id="driveId" type="text" placeholder="Drive file id for question paper" />
+        </div>
+        <div class="row">
+          <label for="maxScore">Max Score</label>
+          <input id="maxScore" type="number" value="10" min="1" />
+        </div>
+        <div class="row">
+          <label for="strictness">Strictness</label>
+          <select id="strictness">
+            <option>Easy</option>
+            <option selected>Medium</option>
+            <option>Hard</option>
+          </select>
+        </div>
+        <div class="row">
+          <label for="rubricContext">Rubric Context</label>
+          <textarea id="rubricContext" placeholder="Write marking rubric here..."></textarea>
+        </div>
+        <div class="row">
+          <label for="referenceFile">Reference Material File (upload from frontend)</label>
+          <input id="referenceFile" type="file" />
+        </div>
+        <button id="submitBtn">Run Grading Flow</button>
+        <button id="syncMarksBtn">Sync Marks (PATCH)</button>
+      </div>
+
+      <div class="card">
+        <h2>PDF Text Extraction</h2>
+        <p class="note">Upload a local PDF or text file to test extraction through <code>/api/drive/extract/local</code>.</p>
+        <div class="row">
+          <label for="extractFile">File</label>
+          <input id="extractFile" type="file" accept=".pdf,.txt,.doc,.docx,.ppt,.pptx" />
+        </div>
+        <button id="extractBtn">Extract Text</button>
+      </div>
+
+      <div class="card">
+        <h2>Payments (Razorpay)</h2>
+        <p class="note">Create a wallet recharge order. Processing charges are auto-deducted from wallet during grading.</p>
+        <div class="row">
+          <label for="rechargeAmountInr">Recharge Amount (INR)</label>
+          <input id="rechargeAmountInr" type="number" value="100" min="100" step="1" />
+        </div>
+        <button id="createOrderBtn">Recharge Wallet</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <h2>Response</h2>
+      <pre id="output">{}</pre>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const qs = (id) => document.getElementById(id);
+      const statusEl = qs("status");
+      const outputEl = qs("output");
+      const tokenBox = qs("tokenBox");
+
+      const state = {
+        token: localStorage.getItem("test_auth_token") || "",
+      };
+
+      function setStatus(text, kind) {
+        statusEl.textContent = text;
+        statusEl.className = "status" + (kind ? " " + kind : "");
+      }
+
+      function setOutput(data) {
+        outputEl.textContent = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+      }
+
+      function refreshTokenUI() {
+        tokenBox.textContent = state.token ? "Token: " + state.token : "Token: not set";
+      }
+
+      function getBaseUrl() {
+        return window.location.origin;
+      }
+
+      async function apiFetch(path, options) {
+        if (!state.token) {
+          throw new Error("Token missing. Login first.");
+        }
+
+        const base = getBaseUrl();
+        const headers = Object.assign({}, options && options.headers ? options.headers : {}, {
+          Authorization: "Bearer " + state.token,
+        });
+
+        const res = await fetch(base + path, Object.assign({}, options || {}, { headers }));
+
+        let payload;
+        try {
+          payload = await res.json();
+        } catch (_) {
+          payload = { message: await res.text() };
+        }
+
+        if (!res.ok) {
+          throw new Error(payload && payload.message ? payload.message : "Request failed with status " + res.status);
+        }
+
+        return payload;
+      }
+
+      async function loginLocal() {
+        const email = qs("email").value.trim();
+        const fullName = qs("fullName").value.trim();
+
+        if (!email) {
+          throw new Error("Email is required for local login.");
+        }
+
+        const base = getBaseUrl();
+        const res = await fetch(base + "/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, fullName }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data && data.message ? data.message : "Login failed");
+        }
+
+        if (!data.authToken) {
+          throw new Error("authToken missing in login response");
+        }
+
+        state.token = data.authToken;
+        localStorage.setItem("test_auth_token", state.token);
+        refreshTokenUI();
+        return data;
+      }
+
+      async function getCourses() {
+        return apiFetch("/api/classroom/courses");
+      }
+
+      async function getCoursework() {
+        const courseId = qs("courseId").value.trim();
+        if (!courseId) {
+          throw new Error("Course ID is required.");
+        }
+        return apiFetch("/api/classroom/coursework/" + encodeURIComponent(courseId));
+      }
+
+      async function runSubmissions() {
+        const courseId = qs("courseId").value.trim();
+        const courseWorkId = qs("courseWorkId").value.trim();
+        const driveId = qs("driveId").value.trim();
+        const maxScore = Number(qs("maxScore").value);
+        const strictness = qs("strictness").value;
+        const rubricContext = qs("rubricContext").value.trim();
+        const fileInput = qs("referenceFile");
+
+        if (!courseId || !courseWorkId) {
+          throw new Error("Course ID and Coursework ID are required.");
+        }
+
+        const formData = new FormData();
+        if (driveId) formData.append("driveId", driveId);
+        if (Number.isFinite(maxScore)) formData.append("maxScore", String(maxScore));
+        if (strictness) formData.append("strictness", strictness);
+        if (rubricContext) formData.append("rubricContext", rubricContext);
+
+        if (fileInput.files && fileInput.files[0]) {
+          formData.append("file", fileInput.files[0]);
+        }
+
+        return apiFetch(
+          "/api/classroom/coursework/" + encodeURIComponent(courseId) + "/" + encodeURIComponent(courseWorkId) + "/submissions",
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
+      }
+
+      async function createCoursework() {
+        const courseId = qs("courseId").value.trim();
+        const title = qs("cwTitle").value.trim();
+        const description = qs("cwDescription").value.trim();
+        const maxPoints = qs("cwMaxPoints").value;
+        const dueDate = qs("cwDueDate").value;
+        const dueTime = qs("cwDueTime").value;
+        const fileInput = qs("cwFile");
+
+        if (!courseId) {
+          throw new Error("Course ID is required.");
+        }
+        if (!title) {
+          throw new Error("Title is required.");
+        }
+        if (!fileInput.files || !fileInput.files[0]) {
+          throw new Error("Assignment file is required.");
+        }
+
+        const formData = new FormData();
+        formData.append("file", fileInput.files[0]);
+        formData.append("title", title);
+        if (description) formData.append("description", description);
+        if (maxPoints !== "") formData.append("maxPoints", String(maxPoints));
+        if (dueDate) formData.append("dueDate", dueDate);
+        if (dueTime) formData.append("dueTime", dueTime);
+
+        return apiFetch(
+          "/api/classroom/createCoursework/" + encodeURIComponent(courseId),
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
+      }
+
+      async function runPdfExtraction() {
+        const fileInput = qs("extractFile");
+
+        if (!fileInput.files || !fileInput.files[0]) {
+          throw new Error("Please choose a local file first.");
+        }
+
+        const formData = new FormData();
+        formData.append("file", fileInput.files[0]);
+
+        return apiFetch("/api/drive/extract/local", {
+          method: "POST",
+          body: formData,
+        });
+      }
+
+      function getWalletRechargePayload() {
+        return {
+          rechargeAmountInr: Number(qs("rechargeAmountInr").value || 0),
+        };
+      }
+
+      async function createRazorpayOrder() {
+        return apiFetch("/api/payments/razorpay/order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(getWalletRechargePayload()),
+        });
+      }
+
+      function openRazorpayCheckout(orderResponse) {
+        if (typeof window.Razorpay !== "function") {
+          throw new Error("Razorpay SDK not loaded. Check internet connectivity and script loading.");
+        }
+
+        const key = orderResponse && orderResponse.keyId;
+        const order = orderResponse && orderResponse.order;
+
+        if (!key || !order || !order.orderId) {
+          throw new Error("Invalid Razorpay order response. Missing keyId or orderId.");
+        }
+
+        const options = {
+          key: key,
+          amount: order.amountPaise,
+          currency: order.currency || "INR",
+          name: "AutoGrade.ai",
+          description: "Wallet recharge",
+          order_id: order.orderId,
+          prefill: {
+            email: qs("email").value.trim() || undefined,
+            name: qs("fullName").value.trim() || undefined,
+          },
+          theme: {
+            color: "#0b63f6",
+          },
+          handler: function (response) {
+            setOutput({
+              message: "Payment successful.",
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+              serverOrder: orderResponse,
+            });
+            setStatus("Payment completed. Webhook will mark order paid on server.", "ok");
+          },
+          modal: {
+            ondismiss: function () {
+              setStatus("Payment popup closed.", "err");
+            },
+          },
+        };
+
+        const razorpay = new window.Razorpay(options);
+        razorpay.on("payment.failed", function (response) {
+          setOutput({
+            message: "Payment failed.",
+            error: response.error,
+            serverOrder: orderResponse,
+          });
+          setStatus("Payment failed.", "err");
+        });
+        razorpay.open();
+      }
+
+      async function syncMarks() {
+        const courseId = qs("courseId").value.trim();
+        const courseWorkId = qs("courseWorkId").value.trim();
+
+        if (!courseId || !courseWorkId) {
+          throw new Error("Course ID and Coursework ID are required.");
+        }
+
+        return apiFetch(
+          "/api/classroom/coursework/" + encodeURIComponent(courseId) + "/" + encodeURIComponent(courseWorkId) + "/submissions/marks",
+          {
+            method: "PATCH",
+          }
+        );
+      }
+
+      qs("loginBtn").addEventListener("click", async function () {
+        try {
+          setStatus("Logging in...", "");
+          const data = await loginLocal();
+          setOutput(data);
+          setStatus("Login successful.", "ok");
+        } catch (err) {
+          setStatus(err.message || "Login failed", "err");
+        }
+      });
+
+      qs("googleBtn").addEventListener("click", function () {
+        window.location.href = getBaseUrl() + "/api/auth/google";
+      });
+
+      qs("coursesBtn").addEventListener("click", async function () {
+        try {
+          setStatus("Fetching courses...", "");
+          const data = await getCourses();
+          setOutput(data);
+          setStatus("Courses fetched.", "ok");
+        } catch (err) {
+          setStatus(err.message || "Failed to fetch courses", "err");
+        }
+      });
+
+      qs("courseworkBtn").addEventListener("click", async function () {
+        try {
+          setStatus("Fetching coursework...", "");
+          const data = await getCoursework();
+          setOutput(data);
+          setStatus("Coursework fetched.", "ok");
+        } catch (err) {
+          setStatus(err.message || "Failed to fetch coursework", "err");
+        }
+      });
+
+      qs("createCourseworkBtn").addEventListener("click", async function () {
+        try {
+          setStatus("Creating coursework...", "");
+          const data = await createCoursework();
+          setOutput(data);
+          setStatus("Coursework created.", "ok");
+        } catch (err) {
+          setStatus(err.message || "Failed to create coursework", "err");
+        }
+      });
+
+      qs("submitBtn").addEventListener("click", async function () {
+        try {
+          setStatus("Running submissions grading flow... this may take some time.", "");
+          const data = await runSubmissions();
+          setOutput(data);
+          setStatus("Submissions flow completed.", "ok");
+        } catch (err) {
+          setStatus(err.message || "Failed to process submissions", "err");
+        }
+      });
+
+      qs("syncMarksBtn").addEventListener("click", async function () {
+        try {
+          setStatus("Syncing marks to Google Classroom...", "");
+          const data = await syncMarks();
+          setOutput(data);
+          setStatus("Marks synced.", "ok");
+        } catch (err) {
+          setStatus(err.message || "Failed to sync marks", "err");
+        }
+      });
+
+      qs("extractBtn").addEventListener("click", async function () {
+        try {
+          setStatus("Extracting text from uploaded file...", "");
+          const data = await runPdfExtraction();
+          setOutput(data);
+          setStatus("Text extraction completed.", "ok");
+        } catch (err) {
+          setStatus(err.message || "Failed to extract text", "err");
+        }
+      });
+
+      qs("createOrderBtn").addEventListener("click", async function () {
+        try {
+          setStatus("Creating wallet recharge order...", "");
+          const data = await createRazorpayOrder();
+          setOutput(data);
+          setStatus("Recharge order created. Opening checkout...", "");
+          openRazorpayCheckout(data);
+        } catch (err) {
+          setStatus(err.message || "Failed to create recharge order", "err");
+        }
+      });
+
+      const params = new URLSearchParams(window.location.search);
+      const tokenFromQuery = params.get("accessToken");
+      if (tokenFromQuery) {
+        state.token = tokenFromQuery;
+        localStorage.setItem("test_auth_token", state.token);
+        refreshTokenUI();
+        setStatus("Token captured from Google OAuth redirect.", "ok");
+      } else {
+        refreshTokenUI();
+      }
+    })();
+  </script>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</body>
+</html>

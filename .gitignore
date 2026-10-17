@@ -1,0 +1,26 @@
+# Environment & secrets — NEVER commit these
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# Credentials
+backend/auto-gcs.json
+backend/ocr.json
+backend/gcs.json
+*.pem
+*.key
+*.crt
+
+# Build output
+backend/dist
+
+# Dependencies
+backend/node_modules
+.venv/
+
+# Test / IDE
+backend/coverage
+backend/public
+.vscode
+.idea
+*.log
